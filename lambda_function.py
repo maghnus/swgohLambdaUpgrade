@@ -34,8 +34,8 @@ def getBearerToken():
 
 def processGuilds(token):
     allyCodeSeeds = []
-    allyCodeSeeds.append("813716868")
-    allyCodeSeeds.append("384569162")
+    allyCodeSeeds.append("seedcode1")
+    allyCodeSeeds.append("seedcode2")
     
     notificationsListByGuild = {}
     for allyCodeSeed in allyCodeSeeds:
