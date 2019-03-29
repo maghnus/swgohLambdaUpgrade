@@ -7,6 +7,7 @@ import os
 import boto3
 from boto3.dynamodb.conditions import Key, Attr
 import time
+from random import randint
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -33,8 +34,8 @@ def getBearerToken():
 
 def processGuilds(token):
     allyCodeSeeds = []
-    allyCodeSeeds.append("code1")
-    allyCodeSeeds.append("code2")
+    allyCodeSeeds.append("813716868")
+    allyCodeSeeds.append("384569162")
     
     notificationsListByGuild = {}
     for allyCodeSeed in allyCodeSeeds:
@@ -112,7 +113,7 @@ def getRostersFromAllyCodeList(token, allyCodeList, notifications, table):
             if not dbDictionary:
                 logger.info("dictionary is empty")
                 newSignup = True;
-                notifications.append(str(stats[0]["player"]) + " has joined the guild")
+                notifications.append("```tex\n" + str(stats[0]["player"]) + " has joined the guild\n```")
             break
         for character, stats in player.items():
             if (newSignup):
@@ -129,7 +130,6 @@ def loadDBItemsForAllyCode(table, allyCode):
         itemDict[item['character']] = item
         
     return itemDict
-        
 
 def processPlayerCharacter(character, stats, table, dbDictionary, newSignup, notifications):
     allyCode = str(stats[0]["allyCode"])
@@ -146,7 +146,7 @@ def processPlayerCharacter(character, stats, table, dbDictionary, newSignup, not
         logger.info(character + " is new for " + playerName)
         writeCharToDB(table, allyCode, character, starLevel, gearLevel, zetaCount)
         if not newSignup:
-            notifications.append(playerName + " has unlocked " + getNiceCharacterName(character) + " at " + str(starLevel) + "* with Gear Level " + str(gearLevel) + " and " + str(zetaCount) + " zetas")
+            notifications.append("```css\n"+ playerName + " has unlocked " + getNiceCharacterName(character) + " at " + str(starLevel) + "*\n```")
         
 def compareExistingChar(dbItem, playerName, allyCode, gearLevel, starLevel, zetaCount, table, notifications):
     somethingHasChanged = False
@@ -155,14 +155,14 @@ def compareExistingChar(dbItem, playerName, allyCode, gearLevel, starLevel, zeta
     if (gearLevel != dbItem['gearLevel']):
         somethingHasChanged = True
         if (gearLevel > 10):
-            notifications.append(playerName + " has upgraded " + getNiceCharacterName(character) + " to Gear Level " + str(gearLevel))
+            notifications.append("```fix\n"+ playerName + " has upgraded " + getNiceCharacterName(character) + " to Gear Level " + str(gearLevel) + "\n```")
     if (starLevel != dbItem['starLevel']):
         somethingHasChanged = True
         if (starLevel > 6):
-            notifications.append(playerName + " has upgraded " + getNiceCharacterName(character) + " to " + str(starLevel) + " stars")
+            notifications.append("```css\n"+ playerName + " has upgraded " + getNiceCharacterName(character) + " to " + str(starLevel) + " stars\n```")
     if (zetaCount != dbItem['zetaCount']): 
         somethingHasChanged = True
-        notifications.append(playerName + " has added a zeta to " + getNiceCharacterName(character))
+        notifications.append("```yaml\n"+ playerName + " has added a zeta to " + getNiceCharacterName(character) + "\n```")
     if (somethingHasChanged):
         logger.info(character + " has changed for " + playerName)
         writeCharToDB(table, allyCode, character, starLevel, gearLevel, zetaCount)
@@ -179,7 +179,6 @@ def writeCharToDB(table, allyCode, character, starLevel, gearLevel, zetaCount):
         }
     )
     
-    
 def chunks(list, size):
     for i in range(0, len(list), size):
         yield list[i:i+size]
@@ -188,35 +187,43 @@ def sendUpdates(notificationsListByGuild):
     for guildName in notificationsListByGuild:
         notificationsListForGuild = notificationsListByGuild[guildName]
         if notificationsListByGuild[guildName]:
-            notificationsListForGuild.insert(0, "Updates for " + guildName)
-        
-        brokenUpList = chunks(notificationsListForGuild, 20)
-
-        for sublist in brokenUpList:
-            logger.info("Send sublist of " + str(len(sublist)) + " items")
             delimiter = "\n"
-            sendToDiscord(delimiter.join(sublist))
-            time.sleep(2)
+            brokenUpList = chunks(notificationsListForGuild, 20)
 
-def sendToDiscord(message):
+            for sublist in brokenUpList:
+                logger.info("Send sublist of " + str(len(sublist)) + " items")
+                delimiter = "\n"
+                sendGuildUpdatesToDiscord(guildName, delimiter.join(sublist))
+                time.sleep(2)
+                
+def sendGuildUpdatesToDiscord(guildName, message):
     webhookUrl = os.environ['discordhook']
-    formdata = "------:::BOUNDARY:::\r\nContent-Disposition: form-data; name=\"content\"\r\n\r\n" + message + "\r\n------:::BOUNDARY:::--"
-  
-    logger.info("Broadcast to Discord" + formdata)
-  
-    # get the connection and make the request
+
+    messageBody = {}
+    messageBody['username'] = "8t88"
+    messageBody['avatar_url'] = "https://vignette.wikia.nocookie.net/jkdf2/images/b/b1/8t88.jpg/revision/latest?cb=20110730224008"
+    
+    embeddedMessage = {}
+    embeddedMessage["title"] = guildName
+    embeddedMessage["description"] = message
+    embeddedMessage["color"] = randint(0, 16777215)
+    messageBody["embeds"] = [embeddedMessage]
+
+    jsonMessage = json.dumps(messageBody)
+
+    logger.info("Broadcast to Discord" + jsonMessage)
+ 
     connection = http.client.HTTPSConnection("discordapp.com")
-    connection.request("POST", webhookUrl, formdata, {
-        'content-type': "multipart/form-data; boundary=----:::BOUNDARY:::",
+    connection.request("POST", webhookUrl, jsonMessage, {
         'cache-control': "no-cache",
+        'Content-type': 'application/json'
         })
   
-    # get the response
     response = connection.getresponse()
     result = response.read()
+    logger.info("Response")
     logger.info(result)
   
-    # return back to the calling function with the result
     return result.decode("utf-8")
     
 def getNiceCharacterName(character):
@@ -231,8 +238,8 @@ niceNames['AAYLASECURA'] = 'Aayla Secura'
 niceNames['ADMINISTRATORLANDO'] = 'Lando Calrissian'
 niceNames['AHSOKATANO'] = 'Ahsoka Tano'
 niceNames['AMILYNHOLDO'] = 'Amilyn Holdo'
-niceNames['ARC170CLONESERGEANT'] = 'Clone Sergeant\'s ARC-170'
-niceNames['ARC170REX'] = 'Rex\'s ARC-170'
+niceNames['ARC170CLONESERGEANT'] = 'Clone Sergeants ARC-170'
+niceNames['ARC170REX'] = 'Rexs ARC-170'
 niceNames['ASAJVENTRESS'] = 'Assaj Ventress'
 niceNames['AURRA_SING'] = 'Aurra Sing'
 niceNames['B1BATTLEDROIDV2'] = 'B1 Battledroid'
@@ -243,7 +250,7 @@ niceNames['BASTILASHANDARK'] = 'Bastila Shan (Fallen)'
 niceNames['BB8'] = 'BB-8'
 niceNames['BIGGSDARKLIGHTER'] = 'Biggs Darklighter'
 niceNames['BISTAN'] = 'Bistan'
-niceNames['BLADEOFDORIN'] = 'Plo Koon\'s Starfighter'
+niceNames['BLADEOFDORIN'] = 'Plo Koons Starfighter'
 niceNames['BOBAFETT'] = 'Boba Fett'
 niceNames['BODHIROOK'] = 'Bodhi Rook'
 niceNames['BOSSK'] = 'Bossk'
@@ -265,7 +272,7 @@ niceNames['CLONESERGEANTPHASEI'] = 'Clone Sergeant'
 niceNames['CLONEWARSCHEWBACCA'] = 'Clone Wars Chewbacca'
 niceNames['COLONELSTARCK'] = 'Colonel Starck'
 niceNames['COMMANDERLUKESKYWALKER'] = 'Commander Luke Skywalker'
-niceNames['COMMANDSHUTTLE'] = 'Kylo Ren\'s Command Shuttle'
+niceNames['COMMANDSHUTTLE'] = 'Kylo Rens Command Shuttle'
 niceNames['CORUSCANTUNDERWORLDPOLICE'] = 'Coruscant Underworld Police'
 niceNames['COUNTDOOKU'] = 'Count Dooku'
 niceNames['CT210408'] = 'Echo'
@@ -273,8 +280,10 @@ niceNames['CT5555'] = 'Fives'
 niceNames['CT7567'] = 'Rex'
 niceNames['DAKA'] = 'Old Daka'
 niceNames['DARTHNIHILUS'] = 'Darth Nihilus'
+niceNames['DARTHREVAN'] = 'Darth Revan'
 niceNames['DARTHSIDIOUS'] = 'Darth Sidious'
 niceNames['DARTHSION'] = 'Darth Sion'
+niceNames['DARTHTRAYA'] = 'Darth Traya'
 niceNames['DATHCHA'] = 'Datcha'
 niceNames['DEATHTROOPER'] = 'Deathtrooper'
 niceNames['DENGAR'] = 'Dengar'
@@ -284,7 +293,7 @@ niceNames['EBONHAWK'] = 'Ebon Hawk'
 niceNames['EETHKOTH'] = 'Eeth Koth'
 niceNames['EMBO'] = 'Embo'
 niceNames['EMPERORPALPATINE'] = 'Emperor Palpatine'
-niceNames['EMPERORSSHUTTLE'] = 'Emperor Palpatine\'s Shuttle'
+niceNames['EMPERORSSHUTTLE'] = 'Emperor Palpatines Shuttle'
 niceNames['ENFYSNEST'] = 'Enfys Nest'
 niceNames['EWOKELDER'] = 'Ewok Elder'
 niceNames['EWOKSCOUT'] = 'Ewok Scout'
@@ -304,7 +313,7 @@ niceNames['GEONOSIANSPY'] = 'Geonosion Spy'
 niceNames['GEONOSIANSTARFIGHTER1'] = 'Geonosian Starfighter?'
 niceNames['GEONOSIANSTARFIGHTER2'] = 'Geonosian Starfighter?'
 niceNames['GEONOSIANSTARFIGHTER3'] = 'Geonosian Starfighter?'
-niceNames['GHOST'] = 'Ghosst'
+niceNames['GHOST'] = 'Ghost'
 niceNames['GRANDADMIRALTHRAWN'] = 'Grand Admiral Thrawn'
 niceNames['GRANDMASTERYODA'] = 'Grand Master Yoda'
 niceNames['GRANDMOFFTARKIN'] = 'Grand Moff Tarkin'
@@ -317,7 +326,7 @@ niceNames['HK47'] = 'HK-47'
 niceNames['HOTHLEIA'] = 'Rebel Officer Leia Organa'
 niceNames['HOTHREBELSCOUT'] = 'Hoth Rebel Scout'
 niceNames['HOTHREBELSOLDIER'] = 'Hoth Rebel Soldier'
-niceNames['HOUNDSTOOTH'] = 'Hound\'s Tooth'
+niceNames['HOUNDSTOOTH'] = 'Hounds Tooth'
 niceNames['HUMANTHUG'] = 'Mob Enforce'
 niceNames['IG2000'] = 'IG-2000'
 niceNames['IG86SENTINELDROID'] = 'IG-86 Sentinel Droid'
@@ -331,8 +340,8 @@ niceNames['JAWASCAVENGER'] = 'Jawa Scavanger'
 niceNames['JEDIKNIGHTCONSULAR'] = 'Jedi Consular'
 niceNames['JEDIKNIGHTGUARDIAN'] = 'Jedi Guardian'
 niceNames['JEDIKNIGHTREVAN'] = 'Jedi Knight Revan'
-niceNames['JEDISTARFIGHTERAHSOKATANO'] = 'Ahsoka Tano\'s Starfighter'
-niceNames['JEDISTARFIGHTERCONSULAR'] = 'Jedi Consular\'s Starfighter'
+niceNames['JEDISTARFIGHTERAHSOKATANO'] = 'Ahsoka Tanos Starfighter'
+niceNames['JEDISTARFIGHTERCONSULAR'] = 'Jedi Consulars Starfighter'
 niceNames['JOLEEBINDO'] = 'Jolee Bindo'
 niceNames['JUHANI'] = 'Juhani'
 niceNames['JYNERSO'] = 'Jyn Erso'
@@ -349,9 +358,9 @@ niceNames['MACEWINDU'] = 'Mace Windu'
 niceNames['MAGMATROOPER'] = 'Magmatrooper'
 niceNames['MAGNAGUARD'] = 'Magnaguard'
 niceNames['MAUL'] = 'Darth Maul'
-niceNames['MILLENNIUMFALCON'] = 'Han\'s Millenium Falcon'
-niceNames['MILLENNIUMFALCONEP7'] = 'Rey\'s Millenium Falcon'
-niceNames['MILLENNIUMFALCONPRISTINE'] = 'Lando\'s Millenium Falcon'
+niceNames['MILLENNIUMFALCON'] = 'Hans Millenium Falcon'
+niceNames['MILLENNIUMFALCONEP7'] = 'Reys Millenium Falcon'
+niceNames['MILLENNIUMFALCONPRISTINE'] = 'Landos Millenium Falcon'
 niceNames['MISSIONVAO'] = 'Mission Vao'
 niceNames['MOTHERTALZIN'] = 'Mother Talzin'
 niceNames['NIGHTSISTERACOLYTE'] = 'Nightsister Acolyte'
@@ -373,7 +382,7 @@ niceNames['QUIGONJINN'] = 'Qui Gon Jinn'
 niceNames['R2D2_LEGENDARY'] = 'R2D2'
 niceNames['RANGETROOPER'] = 'Rangetrooper'
 niceNames['RESISTANCEPILOT'] = 'Resistance Pilot'
-niceNames['RESISTANCETROOPER'] = 'Resitance Trooper'
+niceNames['RESISTANCETROOPER'] = 'Resistance Trooper'
 niceNames['REY'] = 'Rey (Scavenger)'
 niceNames['REYJEDITRAINING'] = 'Rey (Jedi Training)'
 niceNames['ROSETICO'] = 'Rose Tico'
@@ -398,7 +407,7 @@ niceNames['SUNFAC'] = 'Sun Fac'
 niceNames['T3_M4'] = 'T3-M4'
 niceNames['TALIA'] = 'Talia'
 niceNames['TEEBO'] = 'Teebo'
-niceNames['TIEADVANCED'] = 'Vader\'s Tie Advanced'
+niceNames['TIEADVANCED'] = 'Vaders Tie Advanced'
 niceNames['TIEFIGHTERFIRSTORDER'] = 'First Order Tie Fighter'
 niceNames['TIEFIGHTERFOSF'] = 'First Order Special Forces Tie Fighter'
 niceNames['TIEFIGHTERIMPERIAL'] = 'Tie Fighter'
@@ -410,8 +419,8 @@ niceNames['TUSKENSHAMAN'] = 'Tusken Shaman'
 niceNames['UGNAUGHT'] = 'Ugnaught'
 niceNames['UMBARANSTARFIGHTER'] = 'Umbaran Starfighter'
 niceNames['URORRURRR'] = 'Urorrurrr'
-niceNames['UWINGROGUEONE'] = 'Cassian\'s U-wing'
-niceNames['UWINGSCARIF'] = 'Bistan\'s U-wing'
+niceNames['UWINGROGUEONE'] = 'Cassians U-wing'
+niceNames['UWINGSCARIF'] = 'Bistans U-wing'
 niceNames['VADER'] = 'Darth Vader'
 niceNames['VEERS'] = 'General Veers'
 niceNames['VISASMARR'] = 'Visas marr'
@@ -419,9 +428,9 @@ niceNames['WAMPA'] = 'Wampa'
 niceNames['WEDGEANTILLES'] = 'Wedge Antilles'
 niceNames['WICKET'] = 'Wicket'
 niceNames['XANADUBLOOD'] = 'Xanadu Blood'
-niceNames['XWINGBLACKONE'] = 'Poe Dameron\s X-wing'
-niceNames['XWINGRED2'] = 'Wedge Antilles\' X-wing'
-niceNames['XWINGRED3'] = 'Biggs Darklighter\'s X-wing'
+niceNames['XWINGBLACKONE'] = 'Poe Damerons X-wing'
+niceNames['XWINGRED2'] = 'Wedge Antilles X-wing'
+niceNames['XWINGRED3'] = 'Biggs Darklighters X-wing'
 niceNames['XWINGRESISTANCE'] = 'Resistance X-wing'
 niceNames['YOUNGCHEWBACCA'] = 'Vandor Chewbacca'
 niceNames['YOUNGHAN'] = 'Young Han Solo'
