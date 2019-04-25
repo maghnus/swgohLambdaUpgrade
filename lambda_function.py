@@ -34,8 +34,7 @@ def getBearerToken():
 
 def processGuilds(token):
     allyCodeSeeds = []
-    allyCodeSeeds.append("seedcode1")
-    allyCodeSeeds.append("seedcode2")
+    allyCodeSeeds.append("813716868")
     
     notificationsListByGuild = {}
     for allyCodeSeed in allyCodeSeeds:
@@ -438,3 +437,10 @@ niceNames['YOUNGLANDO'] = 'Young Lando Calrissien'
 niceNames['ZAALBAR'] = 'Zaalbar'
 niceNames['ZAMWESELL'] = 'Zam Wesell'
 niceNames['ZEBS3'] = 'Zeb'
+niceNames['ANAKINKNIGHT'] = 'Jedi Knight Anakin'
+niceNames['BAZEMALBUS'] = 'Baze Malbus'
+niceNames['R2D2'] = 'R2-D2'
+niceNames['JEDISTARFIGHTERANAKIN'] = 'Anakins Eta-2 Starfighter'
+niceNames['GAMORREANGUARD'] = 'Gamorrean Guard'
+niceNames['DARTHMALAK'] = 'Darth Malak'
+niceNames['HOTHHAN'] = 'Captain Han Solo'
